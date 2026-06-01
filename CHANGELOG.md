@@ -1,3 +1,13 @@
+## 0.0.2
+
+- **Fixed**: web crash "Cannot set the method call handler before the binary messenger has been initialized" — `FlutterMusicPickerWeb.registerWith()` now passes `Registrar` (which implements `BinaryMessenger`) directly to `MethodChannel` constructor instead of relying on the default binary messenger
+- **Fixed**: `_Ansi.reset` appearing as literal text in log output — Dart string interpolation `$_Ansi.reset` only captured `_Ansi` as identifier; changed to `${_Ansi.reset}`
+- **Fixed**: web permission crash — `permission_handler` throws `UnimplementedError` on web for `Permission.audio`; added `on UnimplementedError` catch in example app
+- **Fixed**: Windows `PKEY_Media_Duration` undeclared identifier — added `#include <propkey.h>` with manual `DEFINE_PROPERTYKEY` fallback for SDK compatibility
+- **Fixed**: pubspec Flutter constraint upper bound removed (`>=3.32.7` instead of `>=3.32.7 <4.0.0`) per pub.dev requirement
+- **Fixed**: homepage and repository URLs corrected to `https://github.com/ArdWang/flutter_music_picker`
+- **Added**: `AppLogger` utility class with ANSI color-coded console output for debugging
+
 ## 0.0.1 — Initial release
 
 - **Dart API**: `FlutterMusicPicker` class with `getMusicFiles()`, `getRingtones()`, `getAllAudioFiles()`, `playRingtone()`, `stopRingtone()` static methods
@@ -42,7 +52,7 @@
 - `StandardMethodCodec` (not `StandardCodecSerializer`) for Flutter 3.32+ compatibility
 
 ### Web
-- Plugin registered via `flutter_web_plugins` with explicit `BinaryMessenger` from `Registrar` to avoid startup crash (fix: "Cannot set the method call handler before the binary messenger has been initialized")
+- Plugin registered via `flutter_web_plugins` with explicit `BinaryMessenger` from `Registrar`
 - Returns sample data so the demo UI has content (browsers restrict filesystem access)
 - Ringtone playback is a no-op on web
 
@@ -64,7 +74,5 @@
 - Fixed Windows build: removed `FLUTTER_PLUGIN_LIST` override from plugin CMakeLists (was corrupting CMake cache)
 - Fixed Windows build: C4819 Unicode error by replacing em dashes/arrows with ASCII in C++ comments and adding `/utf-8` MSVC flag
 - Fixed Windows build: added `extern "C"` C API wrapper accepting `FlutterDesktopPluginRegistrarRef`
-- Fixed Windows build: added manual `PKEY_Media_Duration` definition for SDK compatibility
 - Fixed Linux build: same `StandardCodecSerializer` → `StandardMethodCodec` + `FLUTTER_PLUGIN_LIST` cleanup
-- Fixed web crash: `setMethodCallHandler` called before binary messenger initialized — now uses `Registrar` directly
 - Fixed `MusicItem.fromMap` type safety: added `_parseInt()` / `_parseBool()` helpers handling String/int/num/bool inputs
