@@ -16,11 +16,11 @@ Pod::Spec.new do |s|
 A Flutter plugin that discovers and lists music files and ringtones
 from the device across Android, iOS, macOS, Windows, Linux, and Web.
                        DESC
-  s.homepage         = 'https://github.com/rnd/flutter_music_picker'
+  s.homepage         = 'https://github.com/ArdWang/flutter_music_picker'
   s.license          = { :type => 'MIT' }
-  s.author           = { 'Your Name' => 'your.email@example.com' }
+  s.author           = { 'ArdWang' => 'your.email@example.com' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*'
+  s.source_files     = '../darwin/Classes/**/*'
   s.dependency 'Flutter'
 
   # The MediaPlayer framework is needed on iOS to query the music library

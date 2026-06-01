@@ -12,11 +12,11 @@ Pod::Spec.new do |s|
 A Flutter plugin that discovers and lists music files and ringtones
 from the filesystem on macOS.
                        DESC
-  s.homepage         = 'https://github.com/rnd/flutter_music_picker'
+  s.homepage         = 'https://github.com/ArdWang/flutter_music_picker'
   s.license          = { :type => 'MIT' }
-  s.author           = { 'Your Name' => 'your.email@example.com' }
+  s.author           = { 'ArdWang' => 'your.email@example.com' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*'
+  s.source_files     = '../darwin/Classes/**/*'
   s.dependency 'FlutterMacOS'
 
   # AVFoundation is used on macOS to estimate audio file durations

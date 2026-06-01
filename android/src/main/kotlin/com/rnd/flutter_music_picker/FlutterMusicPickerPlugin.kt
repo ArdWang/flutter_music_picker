@@ -1,7 +1,6 @@
 package com.rnd.flutter_music_picker
 
 import android.content.Context
-import android.media.MediaMetadataRetriever
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
@@ -265,28 +264,12 @@ class FlutterMusicPickerPlugin : FlutterPlugin, MethodCallHandler {
                 ""
             }
 
-            val durationMs = if (fullUri.isNotEmpty()) {
-                try {
-                    val retriever = MediaMetadataRetriever()
-                    retriever.setDataSource(context, Uri.parse(fullUri))
-                    val durStr = retriever.extractMetadata(
-                        MediaMetadataRetriever.METADATA_KEY_DURATION
-                    )
-                    retriever.release()
-                    durStr?.toIntOrNull() ?: 0
-                } catch (_: Exception) {
-                    0
-                }
-            } else {
-                0
-            }
-
             list.add(mapOf<String, Any?>(
                 "id" to id,
                 "title" to "$title ($typeLabel)",
                 "artist" to "System",
                 "album" to album,
-                "durationMs" to durationMs,
+                "durationMs" to 0,
                 "uri" to fullUri,
                 "sizeBytes" to 0,        // RingtoneManager doesn't expose size
                 "isRingtone" to true

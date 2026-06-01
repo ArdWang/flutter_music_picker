@@ -2,19 +2,7 @@
 
 #include <windows.h>
 #include <shlobj.h>
-#include <shlwapi.h>
-#include <propsys.h>
-#include <propvarutil.h>
-#include <propkey.h>
 #include <mmsystem.h>
-
-// Define PKEY_Media_Duration manually in case the SDK's propkey.h
-// does not expose it (observed on some Windows SDK versions).
-#ifndef PKEY_Media_Duration
-DEFINE_PROPERTYKEY(PKEY_Media_Duration,
-    0x64440490, 0x4C8B, 0x11D1, 0x8B, 0x70,
-    0x08, 0x00, 0x36, 0xB1, 0x1A, 0x03, 3);
-#endif
 
 #include <flutter/encodable_value.h>
 #include <flutter/method_channel.h>
@@ -28,8 +16,6 @@ DEFINE_PROPERTYKEY(PKEY_Media_Duration,
 #include <vector>
 
 #pragma comment(lib, "winmm.lib")
-#pragma comment(lib, "propsys.lib")
-#pragma comment(lib, "shlwapi.lib")
 
 namespace flutter_music_picker {
 
@@ -43,39 +29,6 @@ static const std::set<std::wstring> kAudioExtensions = {
 };
 
 // ------------------------------------------------------------------
-// Duration extraction via Windows Shell Property System
-// ------------------------------------------------------------------
-
-/// Reads the audio duration from a file using the Windows property system.
-///
-/// Windows Explorer already extracts media metadata (including duration)
-/// for common audio formats and stores it in the property store. This
-/// function uses IShellItem2 to read the PKEY_Media_Duration property,
-/// which is in 100-nanosecond units. Returns duration in milliseconds,
-/// or 0 if the property is not available (e.g. unsupported format).
-static int GetAudioDurationMs(const std::wstring& file_path) {
-  // PKEY_Media_Duration is defined in propsys.h / propkey.h.
-  // Duration value is in 100ns units (1 ms = 10000 units).
-  IShellItem2* shell_item = nullptr;
-  HRESULT hr = SHCreateItemFromParsingName(
-      file_path.c_str(), nullptr, IID_PPV_ARGS(&shell_item));
-  if (FAILED(hr) || shell_item == nullptr) {
-    return 0;
-  }
-
-  ULONGLONG duration_100ns = 0;
-  hr = shell_item->GetUInt64(PKEY_Media_Duration, &duration_100ns);
-  shell_item->Release();
-
-  if (FAILED(hr)) {
-    return 0;  // Property not available for this file type
-  }
-
-  // Convert 100ns → milliseconds
-  return static_cast<int>(duration_100ns / 10000ULL);
-}
-
-// ------------------------------------------------------------------
 // Plugin registration
 // ------------------------------------------------------------------
 
@@ -83,9 +36,6 @@ void FlutterMusicPickerPlugin::RegisterWithRegistrar(
     flutter::PluginRegistrarWindows *registrar) {
   auto plugin = std::make_unique<FlutterMusicPickerPlugin>();
 
-  // Create the method channel using the default StandardMethodCodec.
-  // The channel must be stored as a member so the handler remains
-  // registered for the plugin's lifetime.
   plugin->channel_ =
       std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
           registrar->messenger(),
@@ -115,7 +65,6 @@ void FlutterMusicPickerPlugin::HandleMethodCall(
   if (method_name == "getMusicFiles") {
     auto result_list = flutter::EncodableList();
 
-    // Scan user's Music folder (e.g. C:\Users\Name\Music)
     wchar_t user_music_path[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPathW(
             nullptr, CSIDL_MYMUSIC, nullptr, 0, user_music_path))) {
@@ -123,7 +72,6 @@ void FlutterMusicPickerPlugin::HandleMethodCall(
       result_list.insert(result_list.end(), dir_items.begin(), dir_items.end());
     }
 
-    // Also scan the Public Music folder
     wchar_t public_path[MAX_PATH];
     if (SUCCEEDED(SHGetFolderPathW(
             nullptr, CSIDL_COMMON_MUSIC, nullptr, 0, public_path))) {
@@ -136,7 +84,6 @@ void FlutterMusicPickerPlugin::HandleMethodCall(
   } else if (method_name == "getRingtones") {
     auto result_list = flutter::EncodableList();
 
-    // Windows stores system sounds in C:\Windows\Media
     wchar_t windows_dir[MAX_PATH];
     if (GetWindowsDirectoryW(windows_dir, MAX_PATH)) {
       std::wstring media_dir = std::wstring(windows_dir) + L"\\Media";
@@ -204,6 +151,7 @@ FlutterMusicPickerPlugin::ScanDirectory(
 
     if (audio_extensions_.find(ext) == audio_extensions_.end()) continue;
 
+    // file_size from the directory entry (fast, no file open)
     auto file_size = it->file_size(ec);
     if (ec) file_size = 0;
 
@@ -223,9 +171,8 @@ flutter::EncodableValue FlutterMusicPickerPlugin::BuildAudioFileEntry(
   auto filename = path.stem().wstring();
   auto parent_dir = path.parent_path().filename().wstring();
 
-  // Extract duration via the Windows Shell property system.
-  // This reads the PKEY_Media_Duration that Explorer already computed.
-  int duration_ms = GetAudioDurationMs(file_path);
+  // No Shell Property System call — durationMs = 0 to avoid main-thread blocking.
+  // The audio player will provide the actual duration during playback.
 
   flutter::EncodableMap item;
   item[flutter::EncodableValue("id")] =
@@ -237,7 +184,7 @@ flutter::EncodableValue FlutterMusicPickerPlugin::BuildAudioFileEntry(
   item[flutter::EncodableValue("album")] =
       flutter::EncodableValue(WideToUtf8(parent_dir));
   item[flutter::EncodableValue("durationMs")] =
-      flutter::EncodableValue(duration_ms);
+      flutter::EncodableValue(0);
   item[flutter::EncodableValue("uri")] =
       flutter::EncodableValue(WideToUtf8(file_path));
   item[flutter::EncodableValue("sizeBytes")] =
@@ -249,7 +196,7 @@ flutter::EncodableValue FlutterMusicPickerPlugin::BuildAudioFileEntry(
 }
 
 // ------------------------------------------------------------------
-// Ringtone Playback  --  Win32 PlaySound
+// Ringtone Playback  --  Win32 PlaySound (only when user taps play)
 // ------------------------------------------------------------------
 
 void FlutterMusicPickerPlugin::PlayRingtoneFile(

@@ -4,6 +4,7 @@ import PackageDescription
 let package = Package(
     name: "flutter_music_picker",
     platforms: [
+        .iOS("12.0"),
         .macOS("10.15")
     ],
     products: [
@@ -17,8 +18,7 @@ let package = Package(
         .target(
             name: "flutter_music_picker",
             path: "../Classes",
-            resources: [],
-            publicHeadersPath: "."
+            resources: []
         )
     ]
 )

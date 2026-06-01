@@ -1,11 +1,21 @@
+## 0.0.3
+
+- **Fixed**: loading freeze / UI hang on all platforms — removed all synchronous per-file blocking I/O during music discovery:
+  - **macOS**: removed `AVAsset(url:).duration` (opened every audio file) and `attributesOfItem(atPath:)` per ringtone
+  - **Windows**: removed `SHCreateItemFromParsingName` + `IShellItem2::GetUInt64(PKEY_Media_Duration)` COM calls per file; removed `propsys.lib`/`shlwapi.lib` dependencies
+  - **iOS**: removed `AVAsset(url:).duration` and `attributesOfItem(atPath:)` per ringtone; removed Tier 2 `fileExists(atPath:)` × 45 fallback
+  - **Android** and **Linux** already clean (pure DB cursor / directory enumeration)
+  - `durationMs` is now consistently `0` across all platforms (audio player provides actual duration at playback time)
+- **Fixed**: Swift Package Manager support — added `darwin/flutter_music_picker/Package.swift`; restructured shared Darwin source under `darwin/Classes/`; updated `ios/` and `macos/` podspecs to reference `../darwin/Classes/**/*`; added `darwin` plugin config in pubspec.yaml
+- **Fixed**: pubspec homepage/repository URLs changed from `rnd` to `ArdWang`
+
 ## 0.0.2
 
-- **Fixed**: web crash "Cannot set the method call handler before the binary messenger has been initialized" — `FlutterMusicPickerWeb.registerWith()` now passes `Registrar` (which implements `BinaryMessenger`) directly to `MethodChannel` constructor instead of relying on the default binary messenger
-- **Fixed**: `_Ansi.reset` appearing as literal text in log output — Dart string interpolation `$_Ansi.reset` only captured `_Ansi` as identifier; changed to `${_Ansi.reset}`
+- **Fixed**: web crash "Cannot set the method call handler before the binary messenger has been initialized" — `FlutterMusicPickerWeb.registerWith()` now passes `Registrar` (which implements `BinaryMessenger`) directly to `MethodChannel` constructor
+- **Fixed**: `_Ansi.reset` appearing as literal text in log output — changed `$_Ansi.reset` to `${_Ansi.reset}`
 - **Fixed**: web permission crash — `permission_handler` throws `UnimplementedError` on web for `Permission.audio`; added `on UnimplementedError` catch in example app
-- **Fixed**: Windows `PKEY_Media_Duration` undeclared identifier — added `#include <propkey.h>` with manual `DEFINE_PROPERTYKEY` fallback for SDK compatibility
-- **Fixed**: pubspec Flutter constraint upper bound removed (`>=3.32.7` instead of `>=3.32.7 <4.0.0`) per pub.dev requirement
-- **Fixed**: homepage and repository URLs corrected to `https://github.com/ArdWang/flutter_music_picker`
+- **Fixed**: Windows `PKEY_Media_Duration` undeclared identifier — added `#include <propkey.h>` with manual `DEFINE_PROPERTYKEY` fallback
+- **Fixed**: pubspec Flutter constraint upper bound removed (`>=3.32.7` instead of `>=3.32.7 <4.0.0`)
 - **Added**: `AppLogger` utility class with ANSI color-coded console output for debugging
 
 ## 0.0.1 — Initial release
