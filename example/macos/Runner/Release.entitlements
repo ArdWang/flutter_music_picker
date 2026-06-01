@@ -4,5 +4,21 @@
 <dict>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
+	<key>com.apple.security.files.music.read-only</key>
+	<true/>
+	<key>com.apple.security.files.downloads.read-only</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-only</key>
+	<true/>
+	<key>com.apple.security.temporary-exception.files.absolute-path.read-only</key>
+	<array>
+		<string>/Library/Ringtones/</string>
+		<string>/System/Library/PrivateFrameworks/ToneLibrary.framework/Versions/A/Resources/Ringtones/</string>
+	</array>
+	<key>com.apple.security.temporary-exception.files.home-relative-path.read-only</key>
+	<array>
+		<string>/Library/Ringtones/</string>
+		<string>/Library/Sounds/</string>
+	</array>
 </dict>
 </plist>

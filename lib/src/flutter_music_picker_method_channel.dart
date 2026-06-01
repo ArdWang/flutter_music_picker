@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'flutter_music_picker_platform_interface.dart';
+import 'logger.dart';
 import 'music_item.dart';
 
 /// An implementation of [FlutterMusicPickerPlatform] that uses
@@ -17,16 +18,27 @@ class MethodChannelFlutterMusicPicker extends FlutterMusicPickerPlatform {
     'com.rnd.flutter_music_picker/music_picker',
   );
 
+  static const _log = AppLogger('MethodChannel');
+
   @override
   Future<List<MusicItem>> getMusicFiles() async {
+    _log.info('getMusicFiles() → calling native method');
     try {
       final List<dynamic> result = await methodChannel.invokeMethod(
         'getMusicFiles',
       );
-      return _parseResultList(result);
+      final items = _parseResultList(result);
+      _log.info('getMusicFiles() ← ${items.length} items');
+      return items;
     } on MissingPluginException {
+      _log.warn('getMusicFiles() ← MissingPluginException, returning []');
       return [];
     } on PlatformException catch (e) {
+      _log.error(
+        'getMusicFiles() ← PlatformException: ${e.message} (code: ${e.code})',
+        e,
+        e.stacktrace,
+      );
       throw MusicPickerException(
         'Failed to retrieve music files: ${e.message}',
         code: e.code,
@@ -36,14 +48,23 @@ class MethodChannelFlutterMusicPicker extends FlutterMusicPickerPlatform {
 
   @override
   Future<List<MusicItem>> getRingtones() async {
+    _log.info('getRingtones() → calling native method');
     try {
       final List<dynamic> result = await methodChannel.invokeMethod(
         'getRingtones',
       );
-      return _parseResultList(result);
+      final items = _parseResultList(result);
+      _log.info('getRingtones() ← ${items.length} items');
+      return items;
     } on MissingPluginException {
+      _log.warn('getRingtones() ← MissingPluginException, returning []');
       return [];
     } on PlatformException catch (e) {
+      _log.error(
+        'getRingtones() ← PlatformException: ${e.message} (code: ${e.code})',
+        e,
+        e.stacktrace,
+      );
       throw MusicPickerException(
         'Failed to retrieve ringtones: ${e.message}',
         code: e.code,
@@ -53,11 +74,18 @@ class MethodChannelFlutterMusicPicker extends FlutterMusicPickerPlatform {
 
   @override
   Future<void> playRingtone(String uri) async {
+    _log.info('playRingtone(uri: $uri) → calling native method');
     try {
       await methodChannel.invokeMethod('playRingtone', {'uri': uri});
+      _log.debug('playRingtone() ← ok');
     } on MissingPluginException {
-      // Platform doesn't support native ringtone playback — no-op.
+      _log.warn('playRingtone() ← MissingPluginException (no-op)');
     } on PlatformException catch (e) {
+      _log.error(
+        'playRingtone() ← PlatformException: ${e.message} (code: ${e.code})',
+        e,
+        e.stacktrace,
+      );
       throw MusicPickerException(
         'Failed to play ringtone: ${e.message}',
         code: e.code,
@@ -67,11 +95,18 @@ class MethodChannelFlutterMusicPicker extends FlutterMusicPickerPlatform {
 
   @override
   Future<void> stopRingtone() async {
+    _log.debug('stopRingtone() → calling native method');
     try {
       await methodChannel.invokeMethod('stopRingtone');
+      _log.debug('stopRingtone() ← ok');
     } on MissingPluginException {
-      // No-op on unsupported platforms.
+      _log.warn('stopRingtone() ← MissingPluginException (no-op)');
     } on PlatformException catch (e) {
+      _log.error(
+        'stopRingtone() ← PlatformException: ${e.message} (code: ${e.code})',
+        e,
+        e.stacktrace,
+      );
       throw MusicPickerException(
         'Failed to stop ringtone: ${e.message}',
         code: e.code,

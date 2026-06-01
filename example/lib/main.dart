@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_music_picker/flutter_music_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -62,6 +63,8 @@ class MusicPickerPage extends StatefulWidget {
 /// and ringtone preview (native platform APIs).
 class _MusicPickerPageState extends State<MusicPickerPage>
     with SingleTickerProviderStateMixin {
+  static const _log = AppLogger('Example');
+
   // ---- tabs ----
   late final TabController _tabController;
 
@@ -98,6 +101,7 @@ class _MusicPickerPageState extends State<MusicPickerPage>
       if (mounted && d != null) setState(() => _musicDuration = d);
     });
 
+    _log.info('Example app started');
     // Load data after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadAudioFiles());
   }
@@ -129,6 +133,7 @@ class _MusicPickerPageState extends State<MusicPickerPage>
   /// Requests audio permissions and loads music + ringtone data
   /// from the device.
   Future<void> _loadAudioFiles() async {
+    _log.info('Loading audio files...');
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -137,6 +142,7 @@ class _MusicPickerPageState extends State<MusicPickerPage>
     try {
       final granted = await _requestPermissions();
       if (!granted) {
+        _log.warn('Permission denied');
         setState(() {
           _isLoading = false;
           _errorMessage =
@@ -151,6 +157,8 @@ class _MusicPickerPageState extends State<MusicPickerPage>
       ]);
 
       if (mounted) {
+        _log.info('Loaded: ${results[0].length} music files, '
+            '${results[1].length} ringtones');
         setState(() {
           _musicFiles = results[0];
           _ringtones = results[1];
@@ -158,22 +166,31 @@ class _MusicPickerPageState extends State<MusicPickerPage>
         });
       }
     } on MusicPickerException catch (e) {
+      _log.error('MusicPickerException: ${e.message}');
       if (mounted) setState(() { _isLoading = false; _errorMessage = e.message; });
     } catch (e) {
+      _log.error('Unexpected error', e);
       if (mounted) setState(() { _isLoading = false; _errorMessage = 'Error: $e'; });
     }
   }
 
   Future<bool> _requestPermissions() async {
-    final audioStatus = await Permission.audio.status;
-    if (audioStatus.isDenied || audioStatus.isLimited) {
-      final result = await Permission.audio.request();
-      if (!result.isGranted) {
-        final storageResult = await Permission.storage.request();
-        return storageResult.isGranted;
+    try {
+      final audioStatus = await Permission.audio.status;
+      if (audioStatus.isDenied || audioStatus.isLimited) {
+        final result = await Permission.audio.request();
+        if (!result.isGranted) {
+          final storageResult = await Permission.storage.request();
+          return storageResult.isGranted;
+        }
       }
+      return true;
+    } on MissingPluginException {
+      // permission_handler is not registered on this platform (e.g. desktop).
+      // Assume permission is granted — native code handles its own checks.
+      _log.warn('permission_handler not available — skipping runtime check');
+      return true;
     }
-    return true;
   }
 
   // --------------- Music playback (just_audio) ---------------
@@ -184,17 +201,21 @@ class _MusicPickerPageState extends State<MusicPickerPage>
     try {
       if (_selectedMusicItem?.id == item.id) {
         if (_isMusicPlaying) {
+          _log.debug('Pause music: ${item.title}');
           await _audioPlayer.pause();
         } else {
+          _log.debug('Resume music: ${item.title}');
           await _audioPlayer.play();
         }
       } else {
         // Stop any ringtone preview before starting music
         await _stopRingtonePreview();
 
+        _log.info('Play music: ${item.title} (${item.uri})');
         setState(() {
           _selectedMusicItem = item;
           _musicPosition = Duration.zero;
+          _musicDuration = Duration(milliseconds: item.durationMs);
         });
         await _audioPlayer.setAudioSource(
           AudioSource.uri(Uri.parse(item.uri)),
@@ -202,6 +223,7 @@ class _MusicPickerPageState extends State<MusicPickerPage>
         await _audioPlayer.play();
       }
     } catch (e) {
+      _log.error('Failed to play music: $e');
       if (mounted) _showError('Failed to play: $e');
     }
   }
@@ -229,11 +251,13 @@ class _MusicPickerPageState extends State<MusicPickerPage>
     try {
       if (_previewingRingtone?.id == item.id && _isRingtonePreviewing) {
         // Already previewing this ringtone → stop it
+        _log.debug('Stop ringtone preview: ${item.title}');
         await _stopRingtonePreview();
       } else {
         // Stop any previous ringtone preview
         await _stopRingtonePreview();
 
+        _log.info('Preview ringtone: ${item.title} (${item.uri})');
         setState(() {
           _previewingRingtone = item;
           _isRingtonePreviewing = true;
@@ -254,6 +278,7 @@ class _MusicPickerPageState extends State<MusicPickerPage>
         });
       }
     } catch (e) {
+      _log.error('Failed to preview ringtone: $e');
       if (mounted) _showError('Failed to preview: $e');
       setState(() => _isRingtonePreviewing = false);
     }
@@ -270,6 +295,7 @@ class _MusicPickerPageState extends State<MusicPickerPage>
   }
 
   void _showError(String message) {
+    _log.error('Showing error snackbar: $message');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),

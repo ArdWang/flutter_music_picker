@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 
 import 'flutter_music_picker_platform_interface.dart';
+import 'logger.dart';
 
 /// The web implementation of [FlutterMusicPickerPlatform].
 ///
@@ -21,6 +22,8 @@ class FlutterMusicPickerWeb extends FlutterMusicPickerPlatform {
     'com.rnd.flutter_music_picker/music_picker',
   );
 
+  static const _log = AppLogger('Web');
+
   /// Registers this web implementation with the plugin system.
   ///
   /// Called once during application startup by the Flutter web engine.
@@ -29,22 +32,29 @@ class FlutterMusicPickerWeb extends FlutterMusicPickerPlatform {
     final instance = FlutterMusicPickerWeb();
     FlutterMusicPickerPlatform.instance = instance;
     _channel.setMethodCallHandler(instance._handleMethodCall);
+    _log.info('registered as web platform implementation');
   }
 
   /// Handles incoming method calls from the Dart side.
   Future<dynamic> _handleMethodCall(MethodCall call) async {
+    _log.info('${call.method}() → handling');
     switch (call.method) {
       case 'getMusicFiles':
-        return _getSampleMusicFiles();
+        final data = await _getSampleMusicFiles();
+        _log.info('getMusicFiles() ← ${data.length} sample items');
+        return data;
       case 'getRingtones':
-        return _getSampleRingtones();
+        final data = await _getSampleRingtones();
+        _log.info('getRingtones() ← ${data.length} sample items');
+        return data;
       case 'playRingtone':
-        // Web browsers cannot play arbitrary local files programmatically.
-        // A production app would use the Web Audio API or <audio> elements.
+        _log.debug('playRingtone() ← no-op on web');
         return true;
       case 'stopRingtone':
+        _log.debug('stopRingtone() ← no-op on web');
         return true;
       default:
+        _log.warn('${call.method}() ← not implemented on web');
         throw MissingPluginException(
           'Method ${call.method} is not implemented on web.',
         );

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'flutter_music_picker_method_channel.dart';
 import 'flutter_music_picker_platform_interface.dart';
+import 'logger.dart';
 import 'music_item.dart';
 
 /// The main entry-point class for the flutter_music_picker plugin.
@@ -26,6 +27,8 @@ import 'music_item.dart';
 class FlutterMusicPicker {
   FlutterMusicPicker._();
 
+  static const _log = AppLogger('API');
+
   /// Ensures the platform implementation is initialized before any
   /// method call. This replaces the unreliable top-level `_initialized`
   /// variable which Dart may optimize away.
@@ -35,6 +38,7 @@ class FlutterMusicPicker {
     if (!_platformInitialized) {
       FlutterMusicPickerPlatform.instance = MethodChannelFlutterMusicPicker();
       _platformInitialized = true;
+      _log.info('Platform initialized → MethodChannelFlutterMusicPicker');
     }
   }
 
@@ -70,10 +74,13 @@ class FlutterMusicPicker {
 
   /// Retrieves both music files and ringtones combined into a single list.
   static Future<List<MusicItem>> getAllAudioFiles() async {
+    _log.info('getAllAudioFiles() — fetching music + ringtones in parallel');
     final results = await Future.wait([
       getMusicFiles(),
       getRingtones(),
     ]);
+    final total = results[0].length + results[1].length;
+    _log.info('getAllAudioFiles() ← $total total items');
     return [...results[0], ...results[1]];
   }
 
