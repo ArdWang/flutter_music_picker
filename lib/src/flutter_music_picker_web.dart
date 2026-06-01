@@ -17,21 +17,27 @@ import 'logger.dart';
 /// 2. Using the File System Access API to let users pick files.
 /// 3. Using an `<input type="file">` element for user-driven selection.
 class FlutterMusicPickerWeb extends FlutterMusicPickerPlatform {
-  /// The method channel used for web plugin communication.
-  static const MethodChannel _channel = MethodChannel(
-    'com.rnd.flutter_music_picker/music_picker',
-  );
-
   static const _log = AppLogger('Web');
 
   /// Registers this web implementation with the plugin system.
   ///
   /// Called once during application startup by the Flutter web engine.
-  /// Overrides the default platform instance with this web implementation.
+  /// Passes the [Registrar] (which implements [BinaryMessenger]) directly
+  /// so the channel can be set up before WidgetsFlutterBinding is ready.
   static void registerWith(Registrar registrar) {
     final instance = FlutterMusicPickerWeb();
     FlutterMusicPickerPlatform.instance = instance;
-    _channel.setMethodCallHandler(instance._handleMethodCall);
+
+    // Use registrar.messenger directly instead of the default binary
+    // messenger. On web the default is not available yet when plugins
+    // are registered.
+    // registrar implements BinaryMessenger in current Flutter versions
+    final channel = MethodChannel(
+      'com.rnd.flutter_music_picker/music_picker',
+      const StandardMethodCodec(),
+      registrar,
+    );
+    channel.setMethodCallHandler(instance._handleMethodCall);
     _log.info('registered as web platform implementation');
   }
 

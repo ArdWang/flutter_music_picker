@@ -34,7 +34,7 @@ class AppLogger {
   }
 
   void _print(String line, String color) {
-    debugPrint('$color$line$_Ansi.reset');
+    debugPrint('$color$line${_Ansi.reset}');
   }
 }
 
@@ -46,6 +46,5 @@ class _Ansi {
   static const red = '\x1B[31m';
   static const green = '\x1B[32m';
   static const yellow = '\x1B[33m';
-  static const cyan = '\x1B[36m';
   static const gray = '\x1B[90m';
 }

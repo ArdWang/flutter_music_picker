@@ -187,8 +187,12 @@ class _MusicPickerPageState extends State<MusicPickerPage>
       return true;
     } on MissingPluginException {
       // permission_handler is not registered on this platform (e.g. desktop).
-      // Assume permission is granted — native code handles its own checks.
       _log.warn('permission_handler not available — skipping runtime check');
+      return true;
+    } on UnimplementedError {
+      // Some permissions are not implemented on web (e.g. Permission.audio).
+      // No runtime permission is needed on web anyway.
+      _log.warn('Permission.audio not available on this platform — skipping');
       return true;
     }
   }
