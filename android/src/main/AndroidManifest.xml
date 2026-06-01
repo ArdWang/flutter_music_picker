@@ -1,0 +1,18 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.rnd.flutter_music_picker">
+
+    <!--
+        Declare the permissions that apps using this plugin may need.
+        The consuming app is responsible for requesting these permissions
+        at runtime. The plugin only declares what it *may* use.
+    -->
+
+    <!-- For Android 13+ (API 33): read audio files from shared storage -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+    <!-- For Android 12 and below: read external storage for audio files -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+
+</manifest>

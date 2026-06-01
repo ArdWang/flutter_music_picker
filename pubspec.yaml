@@ -1,0 +1,42 @@
+name: flutter_music_picker
+description: "A Flutter plugin for picking music files and ringtones from the device filesystem across Android, iOS, macOS, Windows, Linux, and Web."
+version: 0.0.1
+homepage: https://github.com/rnd/flutter_music_picker
+repository: https://github.com/rnd/flutter_music_picker
+
+environment:
+  sdk: ">=3.8.1 <4.0.0"
+  flutter: ">=3.32.7 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Provides web-only plugin implementation support
+  flutter_web_plugins:
+    sdk: flutter
+  # Plugin design relies on platform interface pattern
+  plugin_platform_interface: ^2.1.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# Provides a platform-specific plugin implementation for each supported platform
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.rnd.flutter_music_picker
+        pluginClass: FlutterMusicPickerPlugin
+      ios:
+        pluginClass: FlutterMusicPickerPlugin
+      macos:
+        pluginClass: FlutterMusicPickerPlugin
+      windows:
+        pluginClass: FlutterMusicPickerPluginCApi
+      linux:
+        pluginClass: FlutterMusicPickerPlugin
+      web:
+        pluginClass: FlutterMusicPickerWeb
+        fileName: src/flutter_music_picker_web.dart

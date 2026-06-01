@@ -1,0 +1,16 @@
+//
+//  Generated file. Do not edit.
+//
+
+import FlutterMacOS
+import Foundation
+
+import audio_session
+import flutter_music_picker
+import just_audio
+
+func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
+  AudioSessionPlugin.register(with: registry.registrar(forPlugin: "AudioSessionPlugin"))
+  FlutterMusicPickerPlugin.register(with: registry.registrar(forPlugin: "FlutterMusicPickerPlugin"))
+  JustAudioPlugin.register(with: registry.registrar(forPlugin: "JustAudioPlugin"))
+}
