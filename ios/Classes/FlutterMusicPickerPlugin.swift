@@ -1,12 +1,13 @@
 import Flutter
 import MediaPlayer
 import AVFoundation
+import UIKit
 import os.log
 
-/// iOS implementation of flutter_music_picker.
+/// The iOS implementation of the flutter_music_picker plugin.
 ///
-/// Uses MPMediaQuery to query the device music library (in-memory
-/// database query, no disk I/O). Lists ringtones from /Library/Ringtones.
+/// Uses [MPMediaQuery] to query the device's music library and scans
+/// the system ringtones directory for available ringtone files.
 ///
 /// ## Permissions
 ///
@@ -17,17 +18,20 @@ import os.log
 /// ```
 public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
 
+    /// The current audio player used for ringtone preview playback.
     private var audioPlayer: AVAudioPlayer?
 
+    /// Logger for this plugin instance.
     private let log = OSLog(
         subsystem: "com.rnd.flutter_music_picker",
         category: "iOS"
     )
 
+    /// Registers this plugin with the Flutter engine.
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(
             name: "com.rnd.flutter_music_picker/music_picker",
-            binaryMessenger: registrar.messenger
+            binaryMessenger: registrar.messenger()
         )
         let instance = FlutterMusicPickerPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
@@ -35,11 +39,13 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
                log: instance.log, type: .info)
     }
 
+    /// Dispatches method calls from Dart to the appropriate handler.
     public func handle(
         _ call: FlutterMethodCall,
         result: @escaping FlutterResult
     ) {
-        os_log("[MusicPicker] -> %{public}@", log: log, type: .debug, call.method)
+        os_log("[MusicPicker] -> %{public}@", log: log, type: .debug,
+               call.method)
         switch call.method {
         case "getMusicFiles":
             let files = getMusicFiles()
@@ -54,9 +60,13 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
         case "playRingtone":
             if let args = call.arguments as? [String: Any],
                let uri = args["uri"] as? String, !uri.isEmpty {
+                os_log("[MusicPicker] playRingtone(uri: %{public}@)",
+                       log: log, type: .debug, uri)
                 playRingtone(uri: uri)
                 result(true)
             } else {
+                os_log("[MusicPicker] ERROR playRingtone: invalid or empty uri",
+                       log: log, type: .error)
                 result(FlutterError(
                     code: "INVALID_ARGS",
                     message: "Expected non-empty 'uri' argument",
@@ -64,32 +74,46 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
                 ))
             }
         case "stopRingtone":
+            os_log("[MusicPicker] stopRingtone", log: log, type: .debug)
             stopRingtone()
             result(true)
         default:
+            os_log("[MusicPicker] WARN unimplemented method: %{public}@",
+                   log: log, type: .default, call.method)
             result(FlutterMethodNotImplemented)
         }
     }
 
     // ------------------------------------------------------------------
-    // Music Files — MPMediaQuery (in-memory DB, no disk I/O)
+    // Music Files — MPMediaQuery
     // ------------------------------------------------------------------
 
+    /// Queries the device's music library for all songs.
+    ///
+    /// Uses [MPMediaQuery.songs] to list all tracks. The authorization
+    /// status is checked; if denied, an empty list is returned.
     private func getMusicFiles() -> [[String: Any?]] {
         var items: [[String: Any?]] = []
 
         let authStatus = MPMediaLibrary.authorizationStatus()
         guard authStatus == .authorized else {
-            os_log("[MusicPicker] WARN Media library not authorized (status: %d)",
+            os_log("[MusicPicker] WARN Media library not authorized (status: %d). Add NSAppleMusicUsageDescription to Info.plist",
                    log: log, type: .error, authStatus.rawValue)
             return items
         }
 
         let query = MPMediaQuery.songs()
-        guard let collections = query.items else { return items }
+        guard let collections = query.items else {
+            os_log("[MusicPicker] WARN No songs found in media library",
+                   log: log, type: .default)
+            return items
+        }
+
+        os_log("[MusicPicker] Processing %d songs from media library...",
+               log: log, type: .debug, collections.count)
 
         for mediaItem in collections {
-            items.append([
+            let item: [String: Any?] = [
                 "id": mediaItem.persistentID.description,
                 "title": mediaItem.title ?? "Unknown",
                 "artist": mediaItem.artist ?? "Unknown",
@@ -98,18 +122,23 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
                 "uri": mediaItem.assetURL?.absoluteString ?? "",
                 "sizeBytes": 0,
                 "isRingtone": false
-            ])
+            ]
+            items.append(item)
         }
 
+        os_log("[MusicPicker] Collected %d music items from library",
+               log: log, type: .info, items.count)
         return items
     }
 
     // ------------------------------------------------------------------
-    // Ringtones
+    // Ringtones — File-system scan with known-name fallback
     // ------------------------------------------------------------------
 
+    /// The system ringtones directory on iOS.
     private let ringtoneDir = "/Library/Ringtones"
 
+    /// Well-known iOS system ringtone names.
     private let knownRingtones = [
         "Opening", "Marimba", "Ascending", "Bark", "Bell Tower",
         "Blues", "Boing", "Bulletin", "By The Seaside", "Chimes",
@@ -122,39 +151,66 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
         "Trill", "Tweet", "Uplift", "Waves", "Xylophone",
     ]
 
+    /// Enumerates all system ringtones using a 3-tier strategy:
+    ///
+    /// 1. Try to list the contents of `/Library/Ringtones` directly.
+    /// 2. If listing fails (sandbox), check each known name with `fileExists`.
+    /// 3. If even that fails, return placeholder URIs so the UI still works.
+    ///
+    /// Always includes a "None" entry as the first item.
     private func getSystemRingtones() -> [[String: Any?]] {
         var items: [[String: Any?]] = [
-            ["id": "none", "title": "None", "artist": "", "album": "",
-             "durationMs": 0, "uri": "", "sizeBytes": 0, "isRingtone": true]
+            [
+                "id": "none",
+                "title": "None",
+                "artist": "",
+                "album": "",
+                "durationMs": 0,
+                "uri": "",
+                "sizeBytes": 0,
+                "isRingtone": true
+            ]
         ]
 
         let fm = FileManager.default
-        var seen = Set<String>()
+        var seenURIs = Set<String>()
 
+        // Tier 1 — try to list the directory
         if let files = try? fm.contentsOfDirectory(atPath: ringtoneDir) {
+            os_log("[MusicPicker] Listing %{public}@: %d entries",
+                   log: log, type: .debug, ringtoneDir, files.count)
             for file in files where file.hasSuffix(".m4r") {
                 let name = (file as NSString).deletingPathExtension
                 let path = "\(ringtoneDir)/\(file)"
-                guard !seen.contains(path) else { continue }
-                seen.insert(path)
-                items.append([
-                    "id": path, "title": name, "artist": "System",
-                    "album": "Alerts", "durationMs": 0, "uri": path,
-                    "sizeBytes": 0, "isRingtone": true
-                ])
+                guard !seenURIs.contains(path) else { continue }
+                seenURIs.insert(path)
+                items.append(makeRingtoneItem(name: name, path: path))
             }
         }
 
+        // Tier 2 — file-exists check for known names
         if items.count <= 1 {
+            os_log("[MusicPicker] Directory listing returned empty, checking known names...",
+                   log: log, type: .debug)
             for name in knownRingtones {
                 let path = "\(ringtoneDir)/\(name).m4r"
-                guard !seen.contains(path) else { continue }
-                seen.insert(path)
-                items.append([
-                    "id": path, "title": name, "artist": "System",
-                    "album": "Alerts", "durationMs": 0, "uri": path,
-                    "sizeBytes": 0, "isRingtone": true
-                ])
+                guard !seenURIs.contains(path) else { continue }
+                if fm.fileExists(atPath: path) {
+                    seenURIs.insert(path)
+                    items.append(makeRingtoneItem(name: name, path: path))
+                }
+            }
+        }
+
+        // Tier 3 — placeholder URIs (file may not be readable, but UI needs entries)
+        if items.count <= 1 {
+            os_log("[MusicPicker] Still no ringtones found, returning placeholders for %d known names",
+                   log: log, type: .debug, knownRingtones.count)
+            for name in knownRingtones {
+                let path = "\(ringtoneDir)/\(name).m4r"
+                guard !seenURIs.contains(path) else { continue }
+                seenURIs.insert(path)
+                items.append(makeRingtoneItem(name: name, path: path))
             }
         }
 
@@ -163,29 +219,89 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
         return items
     }
 
+    /// Builds a single ringtone map entry.
+    private func makeRingtoneItem(name: String, path: String) -> [String: Any?] {
+        let fileSize: Int
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: path) {
+            fileSize = (attrs[.size] as? Int) ?? 0
+        } else {
+            fileSize = 0
+        }
+        let url = URL(fileURLWithPath: path)
+        return [
+            "id": path,
+            "title": name,
+            "artist": "System",
+            "album": "Ringtones",
+            "durationMs": estimateDuration(for: url),
+            "uri": path,
+            "sizeBytes": fileSize,
+            "isRingtone": true
+        ]
+    }
+
+    /// Estimates the duration of an audio file using AVAsset.
+    private func estimateDuration(for fileURL: URL) -> Int {
+        let asset = AVAsset(url: fileURL)
+        let seconds = CMTimeGetSeconds(asset.duration)
+        guard seconds.isFinite, seconds > 0 else {
+            return 0
+        }
+        return Int(seconds * 1000)
+    }
+
     // ------------------------------------------------------------------
-    // Ringtone Playback — AVAudioPlayer
+    // Ringtone Playback — AVAudioPlayer with AVAudioSession
     // ------------------------------------------------------------------
 
+    /// Plays a system ringtone sound using [AVAudioPlayer].
+    ///
+    /// Configures the [AVAudioSession] for playback and loops the
+    /// ringtone indefinitely.
+    ///
+    /// - Parameter uri: Full path to the .m4r ringtone file.
     private func playRingtone(uri: String) {
         stopRingtone()
-        guard !uri.isEmpty else { return }
+
+        guard !uri.isEmpty else {
+            os_log("[MusicPicker] Skipping playback: empty URI",
+                   log: log, type: .debug)
+            return
+        }
+
         let url = URL(fileURLWithPath: uri)
-        guard FileManager.default.fileExists(atPath: uri) else { return }
+        guard FileManager.default.fileExists(atPath: uri) else {
+            os_log("[MusicPicker] ERROR Ringtone file not found: %{public}@",
+                   log: log, type: .error, uri)
+            return
+        }
+
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback)
+            try AVAudioSession.sharedInstance().setCategory(
+                .playback, options: []
+            )
             try AVAudioSession.sharedInstance().setActive(true)
+
             audioPlayer = try AVAudioPlayer(contentsOf: url)
             audioPlayer?.numberOfLoops = -1
             audioPlayer?.play()
+            os_log("[MusicPicker] Playing ringtone (loop): %{public}@",
+                   log: log, type: .info, url.lastPathComponent)
         } catch {
-            os_log("[MusicPicker] ERROR Cannot play: %{public}@",
-                   log: log, type: .error, error.localizedDescription)
+            os_log("[MusicPicker] ERROR Cannot play %{public}@: %{public}@",
+                   log: log, type: .error, url.lastPathComponent,
+                   error.localizedDescription)
         }
     }
 
+    /// Stops the currently playing ringtone preview and deactivates
+    /// the audio session.
     private func stopRingtone() {
-        if audioPlayer?.isPlaying == true { audioPlayer?.stop() }
+        if audioPlayer?.isPlaying == true {
+            audioPlayer?.stop()
+            os_log("[MusicPicker] Stopped ringtone playback",
+                   log: log, type: .debug)
+        }
         audioPlayer = nil
         try? AVAudioSession.sharedInstance().setActive(
             false, options: .notifyOthersOnDeactivation)
