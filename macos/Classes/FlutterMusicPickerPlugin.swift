@@ -113,8 +113,26 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
     }
 
     // ------------------------------------------------------------------
-    // Ringtones — directory scan
+    // Ringtones — directory scan with fallback
     // ------------------------------------------------------------------
+
+    /// Known macOS system ringtone / alert sound names.
+    /// Used as a fallback when directories cannot be listed due to sandboxing.
+    private let knownRingtones = [
+        "Opening", "Marimba", "Ascending", "Bark", "Bell Tower",
+        "Blues", "Boing", "Bulletin", "By The Seaside", "Chimes",
+        "Circuit", "Constellation", "Cosmic", "Crystals", "Daybreak",
+        "Departure", "Duck", "Electronic", "Explore", "Glockenspiel",
+        "Harp", "Hillside", "Illuminate", "Night Owl", "Old Phone",
+        "Pinball", "Playtime", "Presto", "Radar", "Radiate",
+        "Ripples", "Sencha", "Signal", "Silk", "Slow Rise",
+        "Stargaze", "Storytime", "Summit", "Tease", "Time Passing",
+        "Trill", "Tweet", "Uplift", "Waves", "Xylophone",
+        // macOS system alert sounds
+        "Basso", "Blow", "Bottle", "Frog", "Funk",
+        "Glass", "Hero", "Morse", "Ping", "Pop",
+        "Purr", "Sosumi", "Submarine", "Tink",
+    ]
 
     private func getSystemRingtones() -> [[String: Any?]] {
         var items: [[String: Any?]] = [
@@ -123,6 +141,7 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
         ]
 
         let fm = FileManager.default
+        var seen = Set<String>()
 
         let soundDirs = [
             "/System/Library/Sounds",
@@ -133,6 +152,7 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
 
         let soundExtensions = Set(["aiff", "aif", "wav", "mp3", "m4r", "caf"])
 
+        // Tier 1: scan known directories
         for dir in soundDirs {
             guard let files = try? fm.contentsOfDirectory(atPath: dir) else { continue }
             for file in files {
@@ -140,6 +160,8 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
                 guard soundExtensions.contains(ext) else { continue }
                 let name = (file as NSString).deletingPathExtension
                 let path = "\(dir)/\(file)"
+                guard !seen.contains(path) else { continue }
+                seen.insert(path)
                 items.append([
                     "id": path,
                     "title": name,
@@ -149,6 +171,21 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
                     "uri": path,
                     "sizeBytes": 0,
                     "isRingtone": true
+                ])
+            }
+        }
+
+        // Tier 2: fallback to known names if the directory scan found little
+        if items.count <= 1 {
+            let ringtoneDir = "/Library/Ringtones"
+            for name in knownRingtones {
+                let path = "\(ringtoneDir)/\(name).m4r"
+                guard !seen.contains(path) else { continue }
+                seen.insert(path)
+                items.append([
+                    "id": path, "title": name, "artist": "System",
+                    "album": "Alerts", "durationMs": 0, "uri": path,
+                    "sizeBytes": 0, "isRingtone": true
                 ])
             }
         }
