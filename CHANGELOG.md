@@ -1,3 +1,22 @@
+## 0.0.7
+
+- **Changed**: removed `sharedDarwinSource` — iOS and macOS now maintain independent implementations matching the Android pattern, eliminating all SPM/CocoaPods compatibility issues
+
+## 0.0.6
+
+- **Fixed**: removed `sharedDarwinSource: true` from iOS/macOS — each platform now has its own independent implementation (same pattern as Android). iOS uses `MPMediaQuery` for music library; macOS uses `FileManager` directory scan.
+- **Fixed**: removed all `s.static_framework = true` from podspecs and removed `darwin/` shared source directory.
+- **Fixed**: `ios/Classes/FlutterMusicPickerPlugin.swift` — iOS-only implementation with MPMediaQuery + AVAudioPlayer
+- **Added**: `macos/Classes/FlutterMusicPickerPlugin.swift` — macOS-only implementation with FileManager scan + AVAudioPlayer
+
+## 0.0.5
+
+- **Fixed**: full CocoaPods compatibility restoration — removed `darwin` platform entry from `pubspec.yaml`, deleted `darwin/flutter_music_picker/Package.swift`, and added `darwin/flutter_music_picker.podspec` for `sharedDarwinSource` integration
+
+## 0.0.4
+
+- **Fixed**: removed `darwin` platform entry from `pubspec.yaml` to restore CocoaPods compatibility on iOS/macOS (plugin was incorrectly marked as Swift Package Manager only)
+
 ## 0.0.3
 
 - **Fixed**: loading freeze / UI hang on all platforms — removed all synchronous per-file blocking I/O during music discovery:

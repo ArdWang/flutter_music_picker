@@ -3,11 +3,10 @@ import MediaPlayer
 import AVFoundation
 import os.log
 
-/// The iOS implementation of the flutter_music_picker plugin.
+/// iOS implementation of flutter_music_picker.
 ///
-/// Uses [MPMediaQuery] to query the device's music library (in-memory
-/// database query, no disk I/O). Lists ringtone identifiers without
-/// per-file metadata reads to avoid blocking the main thread.
+/// Uses MPMediaQuery to query the device music library (in-memory
+/// database query, no disk I/O). Lists ringtones from /Library/Ringtones.
 ///
 /// ## Permissions
 ///
@@ -90,7 +89,6 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
         guard let collections = query.items else { return items }
 
         for mediaItem in collections {
-            // playbackDuration and assetURL come from the query — no extra I/O
             items.append([
                 "id": mediaItem.persistentID.description,
                 "title": mediaItem.title ?? "Unknown",
@@ -107,13 +105,11 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
     }
 
     // ------------------------------------------------------------------
-    // Ringtones — no per-file AVAsset or attributesOfItem calls
+    // Ringtones
     // ------------------------------------------------------------------
 
     private let ringtoneDir = "/Library/Ringtones"
 
-    /// Known iOS system ringtone names (used as a fallback when the
-    /// ringtone directory cannot be listed due to sandboxing).
     private let knownRingtones = [
         "Opening", "Marimba", "Ascending", "Bark", "Bell Tower",
         "Blues", "Boing", "Bulletin", "By The Seaside", "Chimes",
@@ -135,14 +131,12 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
         let fm = FileManager.default
         var seen = Set<String>()
 
-        // Tier 1: try to list the directory (single system call, not per-file)
         if let files = try? fm.contentsOfDirectory(atPath: ringtoneDir) {
             for file in files where file.hasSuffix(".m4r") {
                 let name = (file as NSString).deletingPathExtension
                 let path = "\(ringtoneDir)/\(file)"
                 guard !seen.contains(path) else { continue }
                 seen.insert(path)
-                // No attributesOfItem or AVAsset — avoid per-file blocking I/O
                 items.append([
                     "id": path, "title": name, "artist": "System",
                     "album": "Alerts", "durationMs": 0, "uri": path,
@@ -151,9 +145,6 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
             }
         }
 
-        // Tier 2: fall back to known names (no fileExists checks — they are
-        // blocking per-file I/O and would freeze the UI on devices with many
-        // ringtones). Just return placeholder URIs so the list is populated.
         if items.count <= 1 {
             for name in knownRingtones {
                 let path = "\(ringtoneDir)/\(name).m4r"
@@ -173,7 +164,7 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
     }
 
     // ------------------------------------------------------------------
-    // Ringtone Playback — AVAudioPlayer (only when user taps play)
+    // Ringtone Playback — AVAudioPlayer
     // ------------------------------------------------------------------
 
     private func playRingtone(uri: String) {

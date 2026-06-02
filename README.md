@@ -31,7 +31,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_music_picker: ^0.0.1
+  flutter_music_picker: ^0.0.7
 ```
 
 Then run:

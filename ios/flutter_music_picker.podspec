@@ -10,7 +10,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'flutter_music_picker'
-  s.version          = '0.0.1'
+  s.version          = '0.0.7'
   s.summary          = 'A Flutter plugin for picking music files and ringtones.'
   s.description      = <<-DESC
 A Flutter plugin that discovers and lists music files and ringtones
@@ -20,7 +20,7 @@ from the device across Android, iOS, macOS, Windows, Linux, and Web.
   s.license          = { :type => 'MIT' }
   s.author           = { 'ArdWang' => 'your.email@example.com' }
   s.source           = { :path => '.' }
-  s.source_files     = '../darwin/Classes/**/*'
+  s.source_files     = 'Classes/**/*'
   s.dependency 'Flutter'
 
   # The MediaPlayer framework is needed on iOS to query the music library
@@ -35,6 +35,4 @@ from the device across Android, iOS, macOS, Windows, Linux, and Web.
     'SWIFT_VERSION' => '5.0'
   }
 
-  # Needed for statically linked Flutter frameworks
-  s.static_framework = true
 end
