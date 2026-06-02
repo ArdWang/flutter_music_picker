@@ -31,7 +31,7 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(
             name: "com.rnd.flutter_music_picker/music_picker",
-            binaryMessenger: registrar.messenger()
+            binaryMessenger: registrar.messenger
         )
         let instance = FlutterMusicPickerPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
