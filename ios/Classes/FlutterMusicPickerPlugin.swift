@@ -138,20 +138,7 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
     /// The system ringtones directory on iOS.
     private let ringtoneDir = "/Library/Ringtones"
 
-    /// Well-known iOS system ringtone names.
-    private let knownRingtones = [
-        "Opening", "Marimba", "Ascending", "Bark", "Bell Tower",
-        "Blues", "Boing", "Bulletin", "By The Seaside", "Chimes",
-        "Circuit", "Constellation", "Cosmic", "Crystals", "Daybreak",
-        "Departure", "Duck", "Electronic", "Explore", "Glockenspiel",
-        "Harp", "Hillside", "Illuminate", "Night Owl", "Old Phone",
-        "Pinball", "Playtime", "Presto", "Radar", "Radiate",
-        "Ripples", "Sencha", "Signal", "Silk", "Slow Rise",
-        "Stargaze", "Storytime", "Summit", "Tease", "Time Passing",
-        "Trill", "Tweet", "Uplift", "Waves", "Xylophone",
-    ]
-
-    /// Enumerates all system ringtones using a 3-tier strategy:
+    /// Enumerates all system ringtones by scanning /Library/Ringtones.
     ///
     /// 1. Try to list the contents of `/Library/Ringtones` directly.
     /// 2. If listing fails (sandbox), check each known name with `fileExists`.
@@ -175,39 +162,12 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
         let fm = FileManager.default
         var seenURIs = Set<String>()
 
-        // Tier 1 — try to list the directory
         if let files = try? fm.contentsOfDirectory(atPath: ringtoneDir) {
             os_log("[MusicPicker] Listing %{public}@: %d entries",
                    log: log, type: .debug, ringtoneDir, files.count)
             for file in files where file.hasSuffix(".m4r") {
                 let name = (file as NSString).deletingPathExtension
                 let path = "\(ringtoneDir)/\(file)"
-                guard !seenURIs.contains(path) else { continue }
-                seenURIs.insert(path)
-                items.append(makeRingtoneItem(name: name, path: path))
-            }
-        }
-
-        // Tier 2 — file-exists check for known names
-        if items.count <= 1 {
-            os_log("[MusicPicker] Directory listing returned empty, checking known names...",
-                   log: log, type: .debug)
-            for name in knownRingtones {
-                let path = "\(ringtoneDir)/\(name).m4r"
-                guard !seenURIs.contains(path) else { continue }
-                if fm.fileExists(atPath: path) {
-                    seenURIs.insert(path)
-                    items.append(makeRingtoneItem(name: name, path: path))
-                }
-            }
-        }
-
-        // Tier 3 — placeholder URIs (file may not be readable, but UI needs entries)
-        if items.count <= 1 {
-            os_log("[MusicPicker] Still no ringtones found, returning placeholders for %d known names",
-                   log: log, type: .debug, knownRingtones.count)
-            for name in knownRingtones {
-                let path = "\(ringtoneDir)/\(name).m4r"
                 guard !seenURIs.contains(path) else { continue }
                 seenURIs.insert(path)
                 items.append(makeRingtoneItem(name: name, path: path))
@@ -221,33 +181,16 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
 
     /// Builds a single ringtone map entry.
     private func makeRingtoneItem(name: String, path: String) -> [String: Any?] {
-        let fileSize: Int
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: path) {
-            fileSize = (attrs[.size] as? Int) ?? 0
-        } else {
-            fileSize = 0
-        }
-        let url = URL(fileURLWithPath: path)
         return [
             "id": path,
             "title": name,
             "artist": "System",
             "album": "Ringtones",
-            "durationMs": estimateDuration(for: url),
+            "durationMs": 0,
             "uri": path,
-            "sizeBytes": fileSize,
+            "sizeBytes": 0,
             "isRingtone": true
         ]
-    }
-
-    /// Estimates the duration of an audio file using AVAsset.
-    private func estimateDuration(for fileURL: URL) -> Int {
-        let asset = AVAsset(url: fileURL)
-        let seconds = CMTimeGetSeconds(asset.duration)
-        guard seconds.isFinite, seconds > 0 else {
-            return 0
-        }
-        return Int(seconds * 1000)
     }
 
     // ------------------------------------------------------------------
