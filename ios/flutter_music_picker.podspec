@@ -10,7 +10,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'flutter_music_picker'
-  s.version          = '0.0.7'
+  s.version          = '0.0.8'
   s.summary          = 'A Flutter plugin for picking music files and ringtones.'
   s.description      = <<-DESC
 A Flutter plugin that discovers and lists music files and ringtones

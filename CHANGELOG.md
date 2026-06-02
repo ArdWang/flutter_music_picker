@@ -1,3 +1,9 @@
+## 0.0.8
+
+- **Changed**: separated iOS and macOS into independent plugin implementations — no more `sharedDarwinSource`; each platform owns its source, podspec, and dependencies independently, matching the Android pattern
+- **Fixed**: macOS ringtone scanning now includes `ToneLibrary.framework` ringtones directory — restores full 80+ system ringtone discovery; removed hardcoded fallback list from iOS
+- **Fixed**: removed `AVAsset.duration` and `attributesOfItem(atPath:)` calls across iOS/macOS ringtone scanning — `durationMs` and `sizeBytes` are now `0` for all ringtones and macOS music files, eliminating per-file blocking I/O that caused UI freezes
+
 ## 0.0.7
 
 - **Changed**: removed `sharedDarwinSource` — iOS and macOS now maintain independent implementations matching the Android pattern, eliminating all SPM/CocoaPods compatibility issues
