@@ -6,8 +6,7 @@ import os.log
 /// The macOS implementation of the flutter_music_picker plugin.
 ///
 /// On macOS, this plugin scans standard music and sound directories to
-/// discover audio files. Uses [AVAsset] to estimate audio durations and
-/// [AVAudioPlayer] for ringtone preview playback.
+/// discover audio files. Uses [AVAudioPlayer] for ringtone preview playback.
 ///
 /// No special entitlements are required on macOS beyond standard
 /// filesystem read access within the user's home directory.
@@ -181,15 +180,14 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
                 guard !seenURIs.contains(path) else { continue }
                 seenURIs.insert(path)
 
-                let fileSize = (try? fm.attributesOfItem(atPath: path)[.size] as? Int) ?? 0
                 let item: [String: Any?] = [
                     "id": path,
                     "title": name,
                     "artist": "System",
                     "album": URL(fileURLWithPath: dir).lastPathComponent,
-                    "durationMs": estimateDuration(for: URL(fileURLWithPath: path)),
+                    "durationMs": 0,
                     "uri": path,
-                    "sizeBytes": fileSize,
+                    "sizeBytes": 0,
                     "isRingtone": true
                 ]
                 items.append(item)
@@ -252,9 +250,9 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
                 "title": fileName,
                 "artist": "Unknown",
                 "album": fileURL.deletingLastPathComponent().lastPathComponent,
-                "durationMs": estimateDuration(for: fileURL),
+                "durationMs": 0,
                 "uri": fileURL.path,
-                "sizeBytes": fileSize,
+                "sizeBytes": 0,
                 "isRingtone": false
             ]
             items.append(item)
@@ -264,23 +262,6 @@ public class FlutterMusicPickerPlugin: NSObject, FlutterPlugin {
                log: log, type: .debug, items.count,
                directory.lastPathComponent)
         return items
-    }
-
-    // ------------------------------------------------------------------
-    // Duration Estimation
-    // ------------------------------------------------------------------
-
-    /// Estimates the duration of an audio file using [AVAsset].
-    ///
-    /// Returns the duration in milliseconds, or `0` if the duration
-    /// cannot be determined.
-    private func estimateDuration(for fileURL: URL) -> Int {
-        let asset = AVAsset(url: fileURL)
-        let seconds = CMTimeGetSeconds(asset.duration)
-        guard seconds.isFinite, seconds > 0 else {
-            return 0
-        }
-        return Int(seconds * 1000)
     }
 
     // ------------------------------------------------------------------
